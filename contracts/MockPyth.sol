@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.5.16;
+pragma solidity ^0.8.0;
 
 import "./AbstractPyth.sol";
 import "./PythStructs.sol";
+import "./PythErrors.sol";
 
 contract MockPyth is AbstractPyth {
     mapping(bytes32 => PythStructs.PriceFeed) priceFeeds;
@@ -18,16 +19,16 @@ contract MockPyth is AbstractPyth {
 
     function queryPriceFeed(
         bytes32 id
-    ) public returns (PythStructs.PriceFeed memory priceFeed) {
-        if (priceFeeds[id].id == 0) revert("price feed not found");
+    ) public view override returns (PythStructs.PriceFeed memory priceFeed) {
+        if (priceFeeds[id].id == 0) revert PythErrors.PriceFeedNotFound();
         return priceFeeds[id];
     }
 
-    function priceFeedExists(bytes32 id) public returns (bool) {
+    function priceFeedExists(bytes32 id) public view override returns (bool) {
         return (priceFeeds[id].id != 0);
     }
 
-    function getValidTimePeriod() public returns (uint) {
+    function getValidTimePeriod() public view override returns (uint) {
         return validTimePeriod;
     }
 
@@ -36,9 +37,9 @@ contract MockPyth is AbstractPyth {
     // by using web3.js or ethers abi utilities.
     function updatePriceFeeds(
         bytes[] calldata updateData
-    ) public payable {
+    ) public payable override {
         uint requiredFee = getUpdateFee(updateData);
-        if (msg.value < requiredFee) revert("insufficient fee");
+        if (msg.value < requiredFee) revert PythErrors.InsufficientFee();
 
         // Chain ID is id of the source chain that the price update comes from. Since it is just a mock contract
         // We set it to 1.
@@ -73,7 +74,7 @@ contract MockPyth is AbstractPyth {
 
     function getUpdateFee(
         bytes[] calldata updateData
-    ) public returns (uint feeAmount) {
+    ) public view override returns (uint feeAmount) {
         return singleUpdateFeeInWei * updateData.length;
     }
 
@@ -82,9 +83,9 @@ contract MockPyth is AbstractPyth {
         bytes32[] calldata priceIds,
         uint64 minPublishTime,
         uint64 maxPublishTime
-    ) external payable returns (PythStructs.PriceFeed[] memory feeds) {
+    ) external payable override returns (PythStructs.PriceFeed[] memory feeds) {
         uint requiredFee = getUpdateFee(updateData);
-        if (msg.value < requiredFee) revert("insufficient fee");
+        if (msg.value < requiredFee) revert PythErrors.InsufficientFee();
 
         feeds = new PythStructs.PriceFeed[](priceIds.length);
 
@@ -106,7 +107,7 @@ contract MockPyth is AbstractPyth {
             }
 
             if (feeds[i].id != priceIds[i])
-                revert("price not found within range");
+                revert PythErrors.PriceFeedNotFoundWithinRange();
         }
     }
 
